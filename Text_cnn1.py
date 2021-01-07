@@ -12,7 +12,11 @@ rueiddCId_fn = 'D:\\PyDocument\\MyPaper\\blog_pickle\\rumor_eid_childid.pkl'
 norueiddCId_fn = 'D:\\PyDocument\\MyPaper\\blog_pickle\\norumor_eid_childid.pkl'
 sequence_length = 60    
 filter_sizes = [1, 3, 5]
-num_filters = 64
+fisrt_conv = 5
+first_num_filters = 8
+num_filters = 32
+first_pool_len = 5
+
 # 加载主博客子博客字典，加载是否谣言标签，加载bert2vec向量
 def init_data():
     with open(rumor_fn, 'rb') as rumor_f:
@@ -125,13 +129,13 @@ x_rs = tf.reshape(x, [-1, sequence_length, 768, 1])
 y_ = tf.placeholder(tf.float32, [None, 2])
 dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
-x_pool = tf.nn.max_pool(
-            x_rs,
-            ksize=[1, 1, 768, 1], 
-            strides=[1, 1, 1, 1],
-            padding='VALID',
-            )
-x_pool_flat = tf.reshape(x_pool, [-1, sequence_length])
+# x_pool = tf.nn.max_pool(
+#             x_rs,
+#             ksize=[1, 1, 768, 1], 
+#             strides=[1, 1, 1, 1],
+#             padding='VALID',
+#             )
+# x_pool_flat = tf.reshape(x_pool, [-1, sequence_length])
 # Create a convolution + maxpool layer for each filter size
 pooled_outputs = []
 for i, filter_size in enumerate(filter_sizes):
@@ -139,36 +143,73 @@ for i, filter_size in enumerate(filter_sizes):
         # Convolution Layer
         # filter_size 分别为3 4 5
         filter_shape = [filter_size, 768, 1, num_filters]
-        W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
-        b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
-        conv = tf.nn.conv2d( # [None,56-3+1,1,128] [None,56-4+1,1,128] [None,56-5+1,1,128]
-            x_rs,
-            W,
-            strides=[1, 1, 1, 1],
-            padding="VALID",
-            name="conv")
-
-        # Apply nonlinearity
-        h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
-        # Maxpooling over the outputs
-        pooled = tf.nn.max_pool( 
-            h,
-            ksize=[1, sequence_length - filter_size + 1, 1, 1], 
-            strides=[1, 1, 1, 1],
-            padding='VALID',
-            name="pool")
-        print(pooled)
-        pooled_outputs.append(pooled)
-
-
+        if i == 1:
+            first_pooled = tf.nn.max_pool( 
+                x_rs,
+                ksize=[1, 1, first_pool_len, 1], 
+                strides=[1, 1, 1, 1],
+                padding='VALID',
+                name="first_pool")
+            filter_shape_1 = [filter_size, 768-first_pool_len+1, 1, num_filters]
+            W = tf.Variable(tf.truncated_normal(filter_shape_1, stddev=0.1), name="W")
+            b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
+            conv = tf.nn.conv2d( # [None,56-3+1,1,128] [None,56-4+1,1,128] [None,56-5+1,1,128]
+                first_pooled,
+                W,
+                strides=[1, 1, 1, 1],
+                padding="VALID",
+                name="conv")
+            # Apply nonlinearity
+            h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
+            # Maxpooling over the outputs
+            pooled = tf.nn.max_pool( 
+                h,
+                ksize=[1, sequence_length - filter_size + 1, 1, 1], 
+                strides=[1, 1, 1, 1],
+                padding='VALID',
+                name="pool")
+            print(pooled)
+            pooled_outputs.append(pooled)
+        else:
+            filter_shape_2 = [1, fisrt_conv, 1, first_num_filters]
+            W = tf.Variable(tf.truncated_normal(filter_shape_2, stddev=0.1), name="W")
+            b = tf.Variable(tf.constant(0.1, shape=[first_num_filters]), name="b")
+            conv = tf.nn.conv2d( 
+                x_rs,
+                W,
+                strides=[1, 1, 1, 1],
+                padding="VALID",
+                name="conv")
+            # Apply nonlinearity
+            h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
+            filter_shape_2_2 = [filter_size, 768-fisrt_conv+1, first_num_filters, num_filters]
+            W1 = tf.Variable(tf.truncated_normal(filter_shape_2_2, stddev=0.1), name="W1")
+            b1 = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b1")
+            conv_1 = tf.nn.conv2d( 
+                h,
+                W1,
+                strides=[1, 1, 1, 1],
+                padding="VALID",
+                name="conv")
+            h_1 = tf.nn.relu(tf.nn.bias_add(conv_1, b1), name="relu_1")
+            # Maxpooling over the outputs
+            pooled = tf.nn.max_pool( 
+                h_1,
+                ksize=[1, sequence_length - filter_size + 1, 1, 1], 
+                strides=[1, 1, 1, 1],
+                padding='VALID',
+                name="pool")
+            print(pooled)
+            pooled_outputs.append(pooled)
 # Combine all the pooled features
-num_filters_total = num_filters * len(filter_sizes)
+num_filters_total = num_filters * 3
+# len(filter_sizes)
 h_pool = tf.concat(pooled_outputs, 3)
 h_pool_flat = tf.reshape(h_pool, [-1, num_filters_total])
-final_pool = tf.concat([x_pool_flat, h_pool_flat], 1)
-num_filters_total += sequence_length
+# final_pool = tf.concat([x_pool_flat, h_pool_flat], 1)
+# num_filters_total += sequence_length
 # 全连接dropout
-h_drop = tf.nn.dropout(final_pool, dropout_keep_prob)
+h_drop = tf.nn.dropout(h_pool_flat, dropout_keep_prob)
 
 # Final (unnormalized) scores and predictions
 with tf.name_scope("output"):
@@ -235,7 +276,7 @@ for i in range(50000):
             break
 
 saver = tf.train.Saver(max_to_keep=1)
-model_save_path = "api_1/model"
+model_save_path = "cnn_1/model"
 saver.save(sess=sess, save_path=model_save_path)
 # ckpt_state = tf.train.get_checkpoint_state(model_saver)
 # saver = tf.train.Saver()

@@ -91,8 +91,6 @@ num_classes = 2
 num_layers= 2          
 hidden_dim = 768
 sequence_length = 40
-attention_size = 100
-
 
 x = tf.placeholder(tf.float32, [None, sequence_length, embedding_dim])
 y_ = tf.placeholder(tf.float32, [None, 2])
@@ -111,36 +109,13 @@ with tf.name_scope("rnn"):
     rnn_cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
     # 堆叠了2层的RNN模型。
     _outputs, _ = tf.nn.dynamic_rnn(cell=rnn_cell, inputs=x, dtype=tf.float32)
-    # _outputs_re = tf.reshape(_outputs, [-1, sequence_length * hidden_dim])  
+    _outputs_re = tf.reshape(_outputs, [-1, sequence_length * hidden_dim])  
     # 取最后一个时序输出作为结果，也就是最后时刻和第2层的LSTM或GRU的隐状态。
-    _outputs_re = tf.concat(_outputs, 2)
-    print("rnn==========")
-    print(_outputs_re)
-
-with tf.name_scope('attention'):
-    input_shape = _outputs_re.shape  # (batch_size, sequence_length, hidden_size)
-    sequence_size = input_shape[1].value  # the length of sequences processed in the RNN layer
-    hidden_size = input_shape[2].value  # hidden size of the RNN layer
-    attention_w = tf.Variable(tf.truncated_normal([hidden_size, attention_size], stddev=0.1),
-                                name='attention_w')
-    attention_b = tf.Variable(tf.constant(0.1, shape=[attention_size]), name='attention_b')
-    attention_u = tf.Variable(tf.truncated_normal([attention_size], stddev=0.1), name='attention_u')
-    z_list = []
-    for t in range(sequence_size):
-        u_t = tf.tanh(tf.matmul(_outputs_re[:, t, :], attention_w) + tf.reshape(attention_b, [1, -1]))
-        z_t = tf.matmul(u_t, tf.reshape(attention_u, [-1, 1]))
-        z_list.append(z_t)
-    # Transform to batch_size * sequence_size
-    attention_z = tf.concat(z_list, axis=1)
-    alpha = tf.nn.softmax(attention_z)
-    attention_output = tf.reduce_sum(_outputs_re * tf.reshape(alpha, [-1, sequence_size, 1]), 1)
-    print("attention================")
-    print(attention_output)
 
 with tf.name_scope("score"):
     # 全连接层，后面接dropout以及relu激活
-    output_dropout = tf.nn.dropout(attention_output, dropout_keep_prob)
-    W = tf.get_variable("W", shape=[hidden_dim, num_classes], initializer=tf.contrib.layers.xavier_initializer())
+    output_dropout = tf.nn.dropout(_outputs_re, dropout_keep_prob)
+    W = tf.get_variable("W", shape=[sequence_length * hidden_dim, num_classes], initializer=tf.contrib.layers.xavier_initializer())
     b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
     scores = tf.nn.xw_plus_b(output_dropout, W, b, name="scores")
     predictions = tf.argmax(scores, 1, name="predictions")

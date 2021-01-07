@@ -66,6 +66,7 @@ i = 0
 length = len(dir_list)
 for i, single_file in enumerate(dir_list[:5]):
     print("还剩", length - i - 1)
+    print(single_file)
     get_dict_idText(get_json(single_file), single_file[37:][:-5])
 
 # write_eid_childid = open('norumor_eid_childid.pkl', 'wb')
