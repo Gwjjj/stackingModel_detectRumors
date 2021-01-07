@@ -1,0 +1,7 @@
+server:
+  port: 8081
+weibo:
+  clientId: 3165946531
+  clientSecret: 094797a8047692f876001635c3f2732e
+  redirectUri: http://127.0.0.1:8081/root/login
+  homeUri: http://127.0.0.1/weibo

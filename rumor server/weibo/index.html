@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes" />     
+	<meta name="apple-mobile-web-app-capable" content="yes" />    
+	<meta name="format-detection" content="telephone=no" />    
+	<title>demo2</title>
+	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<link rel="stylesheet" href="css/layui/css/layui.css">
+	<script src="js/jquery-3.1.0.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="js/utils.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+	<script src="https://cdn.staticfile.org/vue-resource/1.5.1/vue-resource.min.js"></script>	
+	<script src="https://cdn.staticfile.org/axios/0.18.0/axios.min.js"></script>
+	<script src="js/layui.js"></script>
+	<script>
+		axios.defaults.withCredentials=true
+	</script>
+	
+		  	
+	<!-- https://api.weibo.com/oauth2/authorize?client_id=3165946531&response_type=code&redirect_uri=http://127.0.0.1:8080/root/weiboLogin -->
+		<!-- <script type="text/javascript">
+			$(document).ready(function(){
+			  $("#box").click(function(){
+			  htmlobj=$.ajax({url:"",
+			  async:true,
+			  success: function(){
+			  
+				}
+			});
+			  });
+			});
+		</script> -->
+</head>
+<body>
+	<div id = "app">
+		<nav class="navbar  navbar-fixed-top" role="navigation" style="background: #e0620d ;padding-top: 3px;height:50px;">
+			<div class="container-fluid" style="background: #fff;"> 
+				<div class="navbar-header ">
+					<span class="navbar-brand " href="#">微博谣言检测识别</span>
+					<button type="button" class="navbar-toggle" data-toggle="collapse"
+							data-target="#my-navbar-collapse">
+						<span class="sr-only">切换导航</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</button>
+				</div>
+				<form class="navbar-form navbar-left" role="search">
+					<div class="form-group">
+						<input type="text" class="form-control" placeholder="#热门话题#">
+						<i class="glyphicon glyphicon-search btn_search" ></i>
+					<!--  <button type="submit" class="btn btn-default">提交</button> -->
+					</div>
+					
+				</form>
+				
+			<div class="collapse navbar-collapse" id="my-navbar-collapse">
+				<ul class="nav navbar-nav navbar-right" >
+					<li ><a id="box" href="http://127.0.0.1:8081/root/validate"><i class="glyphicon glyphicon-user"></i>&nbsp;&nbsp;{{username}}</a></li>
+				</ul>
+			</div>	 
+			</div>
+		<hr style="margin: 0;padding: 0;color:#222;width: 100%">
+		</nav>
+
+		<div class="container container_bg" >
+			<div class="row">
+				<div class="col-sm-2"></div>
+				<div class="col-sm-6 col-xs-12 my_edit" >
+					<div class="row item_msg" v-for = "weibo in weiboList">
+						<div class="col-sm-12 col-xs-12 message" >
+							<img v-bind:src="weibo.userPicUrl" class="col-sm-2 col-xs-2" style="border-radius: 50%">
+							<div class="col-sm-10 col-xs-10">
+								<span style="font-weight: bold;">{{weibo.userName}}</span>
+								<br>
+								<small class="date" style="color:#999">{{weibo.createTime}}</small>
+								<div class="msg_content">{{weibo.text}}
+								<!-- <img class="mypic" v-bind:src="weibo.user.profile_image_url" > -->
+								</div>
+							</div>
+						</div>
+						<div>
+							<comemnt_lan v-bind:weibo="weibo"></comemnt_lan>
+						</div>	
+					</div>
+				</div>
+				<div class="col-sm-3 col-xs-12 part_right" >
+					<div class="row text-center inform">
+						<img v-bind:src="userPic">
+						<h4 style="font-weight: bold;">{{username}}</h4>
+						<div class="col-sm-12 my_inform" >
+							<div class="col-sm-4 col-xs-4">
+								<div>{{friendsCount}}</div>
+								<div class="sort">关注</div>
+							</div>
+							<div class="col-sm-4 col-xs-4">
+								<div>{{followersCount}}</div>
+								<div class="sort">粉丝</div>
+							</div>
+							<div class="col-sm-4 col-xs-4">
+								<div>{{statusesCount}}</div>
+								<div class="sort">博客</div>
+							</div>
+						</div>
+					</div>  	           
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		var username = '请登录';
+		Vue.component('comemnt_lan', {
+			props: ['weibo'],
+  			data: function () {
+    			return {
+				  display:false,
+				  comment_List: null,
+				  prob:0,
+    			}
+  			},
+		  template: '<div><div class="layui-row"><div class="layui-col-xs6"><div class="grid-demo grid-demo-bg1"><div style="background-color: #ffffff;"><div class="W_comment" v-on:click="getComment(weibo.id)" style="cursor: pointer"><i class="layui-icon layui-icon-dialogue" style="font-size: 40px; color: #807f7c;"></i><em>{{weibo.comment}}</em></div></div></div></div><div class="layui-col-xs6"><div style="background-color: #ffffff;"><div class="W_zan" style="cursor: pointer"><i class="layui-icon layui-icon-heart" style="font-size: 40px; color: #807f7c;"></i><em>{{weibo.zan}}</em></div></div></div></div><ul class="list-group" v-show="display" style="margin-bottom: 0px;"><li class="list-group-item"><span style="font-size: 4px;color:red;text-align:right;position:absolute;right:20px;top:0px;">谣言概率: {{prob}}%</span></li><li class="list-group-item" v-for="comment in comment_List"><img style="height:20px;width=20px" v-bind:src="comment.userImg"></img><span class="comment-user">{{comment.userName}}:   </span><span class="comment-test">{{comment.text}}</span></li></ul></div>',
+		  methods:{
+			getComment:function(wid){
+				if(this.comment_List == null){
+					var commentInfoUrl = 'http://127.0.0.1:8081/weibo/commentInfo';	
+					axios.post(commentInfoUrl,{
+						access_token: vm.access_token,
+						weibo_id: wid
+					}).then((response)=>{
+						this.comment_List = response.data.comments;
+						this.prob = response.data.prob;
+						this.display = true;
+					}).catch(function(error){
+						console.log(error);
+					});
+				}
+				else{
+					if(this.display == true){
+						this.display = false;
+					}
+					else{
+						this.display = true;
+					}
+				  }
+			}
+			}
+		})
+		
+		var vm = new  Vue({
+			data: {
+				uid: null,
+				access_token: null
+			},
+			async created() {
+				var tokenUrl = 'http://127.0.0.1:8081/root/getToken';
+				let response = await axios.post(tokenUrl);
+				this.access_token = response.data.access_token;
+				this.uid = response.data.uid;
+				if(this.access_token != null){
+					getUserinfo(this.uid,this.access_token);
+					getWeiboinfo(this.access_token);				
+				}
+				else{
+					alert("please login")
+				}
+			}
+		})
+		var vm1 = new Vue({
+			el: '#app',
+			data:{
+				username: username,
+				friendsCount: 0,
+				followersCount: 0,
+				statusesCount: 0,
+				userPic: 'http://www.90houqq.com/data/attachment/forum/201503/14/144034my3rww2rjpxnhhzo.png',
+				weiboList: null,
+			}
+		})
+		function getUserinfo(uid,access_token){{
+			var userInfoUrl = 'http://127.0.0.1:8081/user/userInfo';
+			axios.post(userInfoUrl,{
+				uid: uid,
+				access_token: access_token
+			}).then(function(response){
+				vm1.username = response.data.name;
+				vm1.friendsCount = response.data.friendsCount;
+				vm1.followersCount = response.data.followersCount;
+				vm1.statusesCount = response.data.statusesCount;
+				vm1.userPic = response.data.userPic;
+			}).catch(function(error){
+				console.log(error);
+			});
+		}}
+		function getWeiboinfo(access_token){{
+			var userInfoUrl = 'http://127.0.0.1:8081/weibo/weiboInfo';
+			axios.post(userInfoUrl,{
+				access_token: access_token
+			}).then(function(response){
+				vm1.weiboList = response.data;
+			}).catch(function(error){
+				console.log(error);
+			});
+		}}
+		function getComment(wid){
+			console.log(wid)
+		}
+
+	</script>
+
+
+</body>
+</html>
